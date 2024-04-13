@@ -19,6 +19,9 @@ OBJS = $(SRCS:.cpp=.o)
 # Executable name
 EXEC = roomAcoustics_$(ARCH)
 
+# Include path
+INC = -I../include
+
 # Build rule
 all: $(INSTALL_PATH)/$(EXEC)
 
