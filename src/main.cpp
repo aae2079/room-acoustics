@@ -3,24 +3,11 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include "acousDefs.hpp"
+#include "wav.hpp"
+#include <fftw3.h>
 using namespace std;
 
-
-typedef struct WAV_HEADER {
-    char riff[4];
-    int32_t chunkSize;
-    char wave[4];
-    char fmt[4];
-    int32_t subchunk1Size;
-    int16_t audioFormat;
-    int16_t numChannels;
-    int32_t sampleRate;
-    int32_t byteRate;
-    int16_t blockAlign;
-    int16_t bitsPerSample;
-    char data[4];
-    int32_t subchunk2Size;
-} wavHeader;
 
 class wav {
     private:
@@ -56,6 +43,57 @@ class wav {
             return data;
         }
 };
+
+
+void hilbertTransform(vector<double>& audioData) {
+    fftw_complex *in, *out;
+    fftw_plan p;
+
+    in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
+    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
+    p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+
+    fftw_execute(p);
+
+
+
+
+
+
+    fftw_destroy_plan(p);
+    fftw_free(in);
+    fftw_free(out);
+
+
+    
+}
+
+void schroederIntegration(vector<double>& audioData) {
+    // Schroeder Integration
+    // 1. Calculate the envelope of the signal
+    // 2. Square the envelope
+    // 3. Integrate the squared envelope
+
+}
+
+REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size, int N) {
+    REVERB_TIME reverbTime; // struct to hold the reverb time values
+    
+    // 1. Calculate hilbert transform
+    // 2. Calculate envelope
+    // 3. Filter the signal to remove any noise
+    // 4. Integrate using schroeder integration
+    // 5. Calculate the reverb time using the schroeder integration (ie. slope of the line) 
+
+    return reverbTime;
+
+}
+
+
+
+
+
+
 
 
 int main(int argc, char* argv[]) {
