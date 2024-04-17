@@ -1,3 +1,6 @@
+#ifndef WAV_HPP
+#define WAV_HPP
+
 #include <iostream>
 using namespace std;
 
@@ -17,3 +20,5 @@ typedef struct WAV_HEADER {
     char data[4];
     int32_t subchunk2Size;
 } wavHeader;
+
+#endif
