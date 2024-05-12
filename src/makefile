@@ -37,18 +37,19 @@ INC = -I$(PROJECT_PATH)/include \
 else
 INC = -I$(PROJECT_PATH)/include \
 	  -I/opt/homebrew/Cellarsu/fftw/3.3.10_1/include \
-	  -I/usr/include
+	  -I/usr/include \
+	  -I/usr/include/portaudio
 endif
 
 # Library path
-LIB = -L/opt/homebrew/Cellar/fftw/3.3.10_1/lib -L/usr/lib/aarch64-linux-gnu
+LIB = -L/opt/homebrew/Cellar/fftw/3.3.10_1/lib -L/usr/lib/aarch64-linux-gnu -L/usr/lib/portaudio
 
 # Build rule
 all: $(INSTALL_PATH)/$(EXEC)
 
 # Target rule to link the executable
 $(INSTALL_PATH)/$(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS)-o $@ $^ $(LIB) -lfftw3 -lm -larmadillo
+	$(CXX) $(CXXFLAGS)-o $@ $^ $(LIB) -lfftw3 -lm -larmadillo -lportaudio
 
 # Rule to compile source files
 $(ODIR)/%.o: %.cpp

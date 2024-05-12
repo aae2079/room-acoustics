@@ -5,10 +5,14 @@
 #include "acousDefs.hpp"
 #include "wav.hpp"
 #include <fftw3.h>
+#include <portaudio.h>
+#include <armadillo>
+#define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
 using namespace std;
 
 
+#if 0
 class wav {
     private:
         wavHeader header;
@@ -55,35 +59,42 @@ class wav {
             return data;
         }
 };
+#endif
 
+arma::cx_vec hilbertTransform(vector<double>& data, int N) {
+    /*
+    Hilber Transform
+    data: input d data (real)
+    N: size of the data
+    */
 
-void hilbertTransform(vector<double>& audioData) {
-    // fftw_complex *in, *out;
-    // fftw_plan p;
+    N = data.size();
+    arma::vec dataArma(data);
+    arma::cx_vec dataFFT = arma::fft(dataArma);
 
-    // in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    // out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    // p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+    if (N % 2 == 0) {
+        for (int ii = 1; ii < N/2; ii++) {
+            dataFFT(ii) *= 2;
+        }
 
-    // //fftw_execute(p);
+    } else {
+        for (int ii = 1; ii < (N+1)/2; ii++) {
+            dataFFT(ii) *= 2;
+        }
+    }
 
+    arma::cx_vec dataIFFT = arma::ifft(dataFFT);
 
-
+    //data = arma::conv_to<std::vector<complex<double>>>::from(arma::abs(dataIFFT));
     
-    // fftw_destroy_plan(p);
-    // fftw_free(in);
-    // fftw_free(out);
-
-
+    return dataIFFT;
     
 }
 
-#if 0
-void schroederIntegration(vector<double>& audioData) {
-    // Schroeder Integration
-    // 1. Calculate the envelope of the signal
-    // 2. Square the envelope
-    // 3. Integrate the squared envelope
+#if 1
+void schroederIntegration(vector<double>& data) {
+
+    
 
 }
 
@@ -105,21 +116,56 @@ REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size
 
 int main(int argc, char* argv[]) {
 
-
+    wavHeader header;
+    vector<double>workingBuffer;
     vector<double>audioData;
+    //vector<double
     if(argc < 2) {
         cout << "Usage: " << argv[0] << " <wav filename>" << endl;
         return 1;
     }
 
-    wav wavFile(argv[1]);
-    cout << argv[1] << "Header Info: "<<endl;
-    wavFile.print();
-    //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
-    audioData = wavFile.getData();
+    string filename;
+    filename = argv[1];
+
+    // wav wavFile(argv[1]);
+    // cout << argv[1] << "Header Info: "<<endl;
+    // wavFile.print();
+    // //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+    // audioData = wavFile.getData();
 
 
     //hilbertTransform(audioData);
+
+    ifstream file(filename, ios::binary);
+    if(!file.is_open()) {
+        cout << "Error: Could not open file " << filename << endl;
+        return -1;
+    }
+
+    //read the header
+    file.read((char*)&header, sizeof(header));
+    
+    //Read the data into a buffer
+    std::vector<char> buffer(BUFFER_SIZE);
+    // u_int16_t bytesPerSample = header.bitsPerSample / 8;
+    // u_int32_t numSamples = header.subchunk2Size / bytesPerSample;
+    const int overlap = BUFFER_SIZE / 4;
+
+
+    while(file.read(buffer.data(), buffer.size())) {
+        for(int i = 0; i < BUFFER_SIZE; i++) {
+            workingBuffer.push_back(buffer[i]);
+        }
+        hilbertTransform(workingBuffer, workingBuffer.size());
+        std::streamsize bytesRead = file.gcount();
+        if(bytesRead == 0){
+            break;
+        }
+    }
+    file.close();
+
+
 
 
     return 0;

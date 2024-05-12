@@ -6,10 +6,12 @@ using namespace std;
 
 
 typedef struct WAV_HEADER {
-    char riff[4];
+    /* RIFF Chunk Descriptor */
+    char    riff[4];
     int32_t chunkSize;
-    char wave[4];
-    char fmt[4];
+    char    wave[4];
+    /*"fmt" sub-chunk */
+    char    fmt[4];
     int32_t subchunk1Size;
     int16_t audioFormat;
     int16_t numChannels;
@@ -17,7 +19,8 @@ typedef struct WAV_HEADER {
     int32_t byteRate;
     int16_t blockAlign;
     int16_t bitsPerSample;
-    char data[4];
+    /*"data" sub-chunk */
+    char    subchunk2ID[4];
     int32_t subchunk2Size;
 } wavHeader;
 
