@@ -6,7 +6,9 @@
 #include "acousDefs.hpp"
 #include "wav.hpp"
 #include <fftw3.h>
+#include <armadillo>
 using namespace std;
+
 
 
 class wav {
@@ -46,24 +48,26 @@ class wav {
 
 
 void hilbertTransform(vector<double>& audioData) {
-    fftw_complex *in, *out;
-    fftw_plan p;
+    // fftw_complex *in, *out;
+    // fftw_plan p;
 
-    in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+    // in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
+    // out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
+    // p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
 
-    fftw_execute(p);
-
-
+    // fftw_execute(p);
 
 
+    //arma::vec audioDataArma(audioData.size());
 
 
-    fftw_destroy_plan(p);
-    fftw_free(in);
-    fftw_free(out);
 
+
+    // fftw_destroy_plan(p);
+    // fftw_free(in);
+    // fftw_free(out);
+
+    
 
     
 }
@@ -77,7 +81,7 @@ void schroederIntegration(vector<double>& audioData) {
 }
 
 REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size, int N) {
-    REVERB_TIME reverbTime; // struct to hold the reverb time values
+    //REVERB_TIME reverbTime; // struct to hold the reverb time values
     
     // 1. Calculate hilbert transform
     // 2. Calculate envelope
@@ -85,7 +89,7 @@ REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size
     // 4. Integrate using schroeder integration
     // 5. Calculate the reverb time using the schroeder integration (ie. slope of the line) 
 
-    return reverbTime;
+    //return reverbTime;
 
 }
 
@@ -110,7 +114,7 @@ int main(int argc, char* argv[]) {
     cout << argv[1] << "Header Info: "<<endl;
     wavFile.print();
 
-    //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+    audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
 
 
     return 0;
