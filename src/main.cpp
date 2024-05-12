@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -6,25 +5,36 @@
 #include "acousDefs.hpp"
 #include "wav.hpp"
 #include <fftw3.h>
-#include <armadillo>
+#define BUFFER_SIZE 1024
 using namespace std;
-
 
 
 class wav {
     private:
         wavHeader header;
-        vector<int16_t> data;
+        vector<double> data;
     public:
         wav(string filename) {
             ifstream file(filename, ios::binary);
-            if (file.is_open()) {
-                file.read((char*)&header, sizeof(header));
-                int16_t buffer;
-                while (file.read((char*)&buffer, sizeof(buffer))) {
-                    data.push_back(buffer);
+            if(!file.is_open()) {
+                cout << "Error: Could not open file " << filename << endl;
+                return;
+            }
+            file.read((char*)&header, sizeof(wavHeader));
+            
+            //Read the data into a buffer
+            std::vector<char> buffer(BUFFER_SIZE);
+            while(file.read(buffer.data(), buffer.size())) {
+                for(int i = 0; i < BUFFER_SIZE; i++) {
+                    data.push_back((double)buffer[i]);
+                }
+                std::streamsize bytesRead = file.gcount();
+                if(bytesRead == 0){
+                    break;
                 }
             }
+            file.close();
+            
         }
         void print() {
             cout << "riff: " << header.riff[0] << header.riff[1] << header.riff[2] << header.riff[3] << endl;
@@ -41,7 +51,7 @@ class wav {
             cout << "data: " << header.data[0] << header.data[1] << header.data[2] << header.data[3] << endl;
             cout << "subchunk2Size: " << header.subchunk2Size << endl;
         }
-        const vector<int16_t>& getData() {
+        const vector<double>& getData() {
             return data;
         }
 };
@@ -55,23 +65,20 @@ void hilbertTransform(vector<double>& audioData) {
     // out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
     // p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
 
-    // fftw_execute(p);
-
-
-    //arma::vec audioDataArma(audioData.size());
+    // //fftw_execute(p);
 
 
 
-
+    
     // fftw_destroy_plan(p);
     // fftw_free(in);
     // fftw_free(out);
 
-    
 
     
 }
 
+#if 0
 void schroederIntegration(vector<double>& audioData) {
     // Schroeder Integration
     // 1. Calculate the envelope of the signal
@@ -81,7 +88,7 @@ void schroederIntegration(vector<double>& audioData) {
 }
 
 REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size, int N) {
-    //REVERB_TIME reverbTime; // struct to hold the reverb time values
+    REVERB_TIME reverbTime; // struct to hold the reverb time values
     
     // 1. Calculate hilbert transform
     // 2. Calculate envelope
@@ -89,32 +96,30 @@ REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size
     // 4. Integrate using schroeder integration
     // 5. Calculate the reverb time using the schroeder integration (ie. slope of the line) 
 
-    //return reverbTime;
+    return reverbTime;
 
 }
 
 
-
-
-
-
-
+#endif 
 
 int main(int argc, char* argv[]) {
 
-    vector<double> audioData;
 
-
+    vector<double>audioData;
     if(argc < 2) {
-        cout << "Usage: " << argv[0] << " <filename>" << endl;
+        cout << "Usage: " << argv[0] << " <wav filename>" << endl;
         return 1;
     }
 
     wav wavFile(argv[1]);
     cout << argv[1] << "Header Info: "<<endl;
     wavFile.print();
+    //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+    audioData = wavFile.getData();
 
-    audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+
+    //hilbertTransform(audioData);
 
 
     return 0;
