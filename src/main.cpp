@@ -63,7 +63,7 @@ class wav {
 
 arma::cx_vec hilbertTransform(vector<double>& data, int N) {
     /*
-    Hilber Transform
+    computes the Hilbert Transform
     data: input d data (real)
     N: size of the data
     */
@@ -94,12 +94,34 @@ arma::cx_vec hilbertTransform(vector<double>& data, int N) {
 #if 1
 void schroederIntegration(vector<double>& data) {
 
-    
+    /* 
+    Computes the Schroeder Integration
+    data: input data (real)
+    */
+
+    std::vector<double> cumsum;
+    int sum = 0;
+    for(int i = 0; i < data.size(); i++) {
+        sum += data[i];
+        cumsum.push_back(sum);
+    }
+
+    double max_cumsum = *std::max_element(cumsum.begin(), cumsum.end());
+
+    for (int ii = 0; ii < data.size(); ii++) {
+        data[ii] = 10 * log10(cumsum[ii] / max_cumsum);
+    }
+
+
 
 }
 
-REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size, int N) {
+REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size) {
     REVERB_TIME reverbTime; // struct to hold the reverb time values
+    
+    arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
+    vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
+
     
     // 1. Calculate hilbert transform
     // 2. Calculate envelope
