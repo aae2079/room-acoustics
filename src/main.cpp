@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -6,23 +5,40 @@
 #include "acousDefs.hpp"
 #include "wav.hpp"
 #include <fftw3.h>
+#include <portaudio.h>
+#include <armadillo>
+#define ARMA_USE_FFTW3
+#define BUFFER_SIZE 1024
 using namespace std;
 
 
+#if 0
 class wav {
     private:
         wavHeader header;
-        vector<int16_t> data;
+        vector<double> data;
     public:
         wav(string filename) {
             ifstream file(filename, ios::binary);
-            if (file.is_open()) {
-                file.read((char*)&header, sizeof(header));
-                int16_t buffer;
-                while (file.read((char*)&buffer, sizeof(buffer))) {
-                    data.push_back(buffer);
+            if(!file.is_open()) {
+                cout << "Error: Could not open file " << filename << endl;
+                return;
+            }
+            file.read((char*)&header, sizeof(wavHeader));
+            
+            //Read the data into a buffer
+            std::vector<char> buffer(BUFFER_SIZE);
+            while(file.read(buffer.data(), buffer.size())) {
+                for(int i = 0; i < BUFFER_SIZE; i++) {
+                    data.push_back((double)buffer[i]);
+                }
+                std::streamsize bytesRead = file.gcount();
+                if(bytesRead == 0){
+                    break;
                 }
             }
+            file.close();
+            
         }
         void print() {
             cout << "riff: " << header.riff[0] << header.riff[1] << header.riff[2] << header.riff[3] << endl;
@@ -39,45 +55,73 @@ class wav {
             cout << "data: " << header.data[0] << header.data[1] << header.data[2] << header.data[3] << endl;
             cout << "subchunk2Size: " << header.subchunk2Size << endl;
         }
-        const vector<int16_t>& getData() {
+        const vector<double>& getData() {
             return data;
         }
 };
+#endif
 
+arma::cx_vec hilbertTransform(vector<double>& data, int N) {
+    /*
+    computes the Hilbert Transform
+    data: input d data (real)
+    N: size of the data
+    */
 
-void hilbertTransform(vector<double>& audioData) {
-    fftw_complex *in, *out;
-    fftw_plan p;
+    N = data.size();
+    arma::vec dataArma(data);
+    arma::cx_vec dataFFT = arma::fft(dataArma);
 
-    in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * audioData.size());
-    p = fftw_plan_dft_1d(audioData.size(), in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+    if (N % 2 == 0) {
+        for (int ii = 1; ii < N/2; ii++) {
+            dataFFT(ii) *= 2;
+        }
 
-    fftw_execute(p);
+    } else {
+        for (int ii = 1; ii < (N+1)/2; ii++) {
+            dataFFT(ii) *= 2;
+        }
+    }
 
+    arma::cx_vec dataIFFT = arma::ifft(dataFFT);
 
-
-
-
-
-    fftw_destroy_plan(p);
-    fftw_free(in);
-    fftw_free(out);
-
-
+    //data = arma::conv_to<std::vector<complex<double>>>::from(arma::abs(dataIFFT));
+    
+    return dataIFFT;
     
 }
 
-void schroederIntegration(vector<double>& audioData) {
-    // Schroeder Integration
-    // 1. Calculate the envelope of the signal
-    // 2. Square the envelope
-    // 3. Integrate the squared envelope
+#if 1
+void schroederIntegration(vector<double>& data) {
+
+    /* 
+    Computes the Schroeder Integration
+    data: input data (real)
+    */
+
+    std::vector<double> cumsum;
+    int sum = 0;
+    for(int i = 0; i < data.size(); i++) {
+        sum += data[i];
+        cumsum.push_back(sum);
+    }
+
+    double max_cumsum = *std::max_element(cumsum.begin(), cumsum.end());
+
+    for (int ii = 0; ii < data.size(); ii++) {
+        data[ii] = 10 * log10(cumsum[ii] / max_cumsum);
+    }
+
+
 
 }
 
-REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size, int N) {
+REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size) {
     REVERB_TIME reverbTime; // struct to hold the reverb time values
+    
+    arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
+    vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
+
     
     // 1. Calculate hilbert transform
     // 2. Calculate envelope
@@ -90,27 +134,60 @@ REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size
 }
 
 
-
-
-
-
-
+#endif 
 
 int main(int argc, char* argv[]) {
 
-    vector<double> audioData;
-
-
+    wavHeader header;
+    vector<double>workingBuffer;
+    vector<double>audioData;
+    //vector<double
     if(argc < 2) {
-        cout << "Usage: " << argv[0] << " <filename>" << endl;
+        cout << "Usage: " << argv[0] << " <wav filename>" << endl;
         return 1;
     }
 
-    wav wavFile(argv[1]);
-    cout << argv[1] << "Header Info: "<<endl;
-    wavFile.print();
+    string filename;
+    filename = argv[1];
 
-    //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+    // wav wavFile(argv[1]);
+    // cout << argv[1] << "Header Info: "<<endl;
+    // wavFile.print();
+    // //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
+    // audioData = wavFile.getData();
+
+
+    //hilbertTransform(audioData);
+
+    ifstream file(filename, ios::binary);
+    if(!file.is_open()) {
+        cout << "Error: Could not open file " << filename << endl;
+        return -1;
+    }
+
+    //read the header
+    file.read((char*)&header, sizeof(header));
+    
+    //Read the data into a buffer
+    std::vector<char> buffer(BUFFER_SIZE);
+    // u_int16_t bytesPerSample = header.bitsPerSample / 8;
+    // u_int32_t numSamples = header.subchunk2Size / bytesPerSample;
+    const int overlap = BUFFER_SIZE / 4;
+
+
+    while(file.read(buffer.data(), buffer.size())) {
+        for(int i = 0; i < BUFFER_SIZE; i++) {
+            workingBuffer.push_back(buffer[i]);
+        }
+        hilbertTransform(workingBuffer, workingBuffer.size());
+        std::streamsize bytesRead = file.gcount();
+        if(bytesRead == 0){
+            break;
+        }
+    }
+    file.close();
+
+
 
 
     return 0;
