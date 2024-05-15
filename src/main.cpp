@@ -61,7 +61,7 @@ class wav {
 };
 #endif
 
-arma::cx_vec hilbertTransform(vector<double>& data, int N) {
+arma::cx_vec hilbertTransform(std::vector<double>& data, int N) {
     /*
     computes the Hilbert Transform
     data: input d data (real)
@@ -92,7 +92,28 @@ arma::cx_vec hilbertTransform(vector<double>& data, int N) {
 }
 
 #if 1
-void schroederIntegration(vector<double>& data) {
+void movingAverage(std::vector<double>& data, int k) {
+    /*
+    Computes the moving average of the data, which uses a reflective padding method
+    data: input data (real)
+    k: size of the window
+    */
+
+    //int pad_width = k / 2;
+    std::vector<double> frame;
+
+    for (int ii = 0; ii < data.size(); ii++){
+        double sum = 0;
+        for (int jj = 0; jj < k; jj++) {
+            sum += data[ii + jj];
+        }
+        frame.push_back(sum/k);
+        
+    }
+
+
+}
+void schroederIntegration(std::vector<double>& data) {
 
     /* 
     Computes the Schroeder Integration
