@@ -137,18 +137,24 @@ void schroederIntegration(std::vector<double>& data) {
 
 }
 
-REVERB_TIME reverbTimeCalc(vector<double>& audioData, double fs, int window_size) {
+REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, double fs, int window_size) {
     REVERB_TIME reverbTime; // struct to hold the reverb time values
     
     arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
-    vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
+    std::vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
+    int N = 7000;
 
+    movingAverage(envelope, window_size);
+
+    // Schroeder Integration Proc
+    std::vector<double> schIntegralInput(envelope.begin(), envelope.end() + N);
+    std::reverse(schIntegralInput.begin(), schIntegralInput.end());
+    std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) {return x*x;});
+    schroederIntegration(schIntegralInput);
+
+    // Calculate the reverb time Curve Fitting
     
-    // 1. Calculate hilbert transform
-    // 2. Calculate envelope
-    // 3. Filter the signal to remove any noise
-    // 4. Integrate using schroeder integration
-    // 5. Calculate the reverb time using the schroeder integration (ie. slope of the line) 
+    
 
     return reverbTime;
 
