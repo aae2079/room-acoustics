@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <cstdio>
 #include <string>
 #include <vector>
 #include "acousDefs.hpp"
@@ -137,82 +138,97 @@ void schroederIntegration(std::vector<double>& data) {
 
 }
 
-REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, double fs, int window_size) {
+REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, std::vector<double>& buffer, double fs, int window_size) {
     REVERB_TIME reverbTime; // struct to hold the reverb time values
     
-    arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
-    std::vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
-    int N = 7000;
+    //buffer.insert(audioData.begin(), audioData.end());
 
-    movingAverage(envelope, window_size);
+    if(buffer.size() >= 19900) {
+        // Hilbert Transform
+        arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
+        std::vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
+        int N = 7000;
 
-    // Schroeder Integration Proc
-    std::vector<double> schIntegralInput(envelope.begin(), envelope.end() + N);
-    std::reverse(schIntegralInput.begin(), schIntegralInput.end());
-    std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) {return x*x;});
-    schroederIntegration(schIntegralInput);
+        movingAverage(envelope, window_size);
 
-    // Calculate the reverb time Curve Fitting
-    
+        // Schroeder Integration Proc
+        std::vector<double> schIntegralInput(envelope.begin(), envelope.end() + N);
+        std::reverse(schIntegralInput.begin(), schIntegralInput.end());
+        std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) {return x*x;});
+        schroederIntegration(schIntegralInput);
+
+        // Calculate the reverb time Curve Fitting
+ 
+    }
+
     
 
     return reverbTime;
 
 }
 
+#endif
 
-#endif 
+    
 
 int main(int argc, char* argv[]) {
 
-    wavHeader header;
-    vector<double>workingBuffer;
-    vector<double>audioData;
-    //vector<double
-    if(argc < 2) {
-        cout << "Usage: " << argv[0] << " <wav filename>" << endl;
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
         return 1;
     }
 
-    string filename;
-    filename = argv[1];
 
-    // wav wavFile(argv[1]);
-    // cout << argv[1] << "Header Info: "<<endl;
-    // wavFile.print();
-    // //audioData = vector<double>(wavFile.getData().begin(), wavFile.getData().end());
-    // audioData = wavFile.getData();
+    /*
+    Read the WAV file
+    */
+    std::ifstream file(argv[1], std::ios::binary);
+    
+    if (!file.is_open()) {
+        std::cerr << "Could not open file: " << argv[1] << std::endl;
+        return -1;
+    }
+    
+    wavHeader header;
+    file.read(reinterpret_cast<char*>(&header), sizeof(header));
 
-
-    //hilbertTransform(audioData);
-
-    ifstream file(filename, ios::binary);
-    if(!file.is_open()) {
-        cout << "Error: Could not open file " << filename << endl;
+    if (header.riff[0] != 'R' || header.riff[1] != 'I' ||
+        header.riff[2] != 'F' || header.riff[3] != 'F') {
+        std::cerr << "Invalid WAV file format: " << argv[1] << std::endl;
         return -1;
     }
 
-    //read the header
-    file.read((char*)&header, sizeof(header));
-    
-    //Read the data into a buffer
-    std::vector<char> buffer(BUFFER_SIZE);
-    // u_int16_t bytesPerSample = header.bitsPerSample / 8;
-    // u_int32_t numSamples = header.subchunk2Size / bytesPerSample;
-    const int overlap = BUFFER_SIZE / 4;
+    const size_t bytes_per_sample = header.bitsPerSample / 8;
+    std::vector<char> buffer(BUFFER_SIZE*bytes_per_sample);
 
+    int msgCount = 1;
 
-    while(file.read(buffer.data(), buffer.size())) {
-        for(int i = 0; i < BUFFER_SIZE; i++) {
-            workingBuffer.push_back(buffer[i]);
+    while (file.read(buffer.data(), BUFFER_SIZE*bytes_per_sample)) {
+        std::cout << "Read " << file.gcount() << " bytes." << std::endl;
+        
+        
+        if (bytes_per_sample == 2) { // 16-bit sample
+            std::vector<int16_t> audioChunk(BUFFER_SIZE);
+            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytes_per_sample);
+            int a = 0;
+
+        } else if (bytes_per_sample == 4) { // 32-bit sample
+            int32_t sample = *reinterpret_cast<int32_t*>(buffer.data());
+            std::cout << "First sample: " << sample << std::endl;
         }
-        hilbertTransform(workingBuffer, workingBuffer.size());
-        std::streamsize bytesRead = file.gcount();
-        if(bytesRead == 0){
-            break;
-        }
+        msgCount++;
     }
+
+    if (file.gcount() > 0) {
+        std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
+        
+        // Process remaining buffer here
+        msgCount++;
+    }
+
+    std::cout<< "Number of messages: " << msgCount << std::endl;
     file.close();
+
 
 
 
