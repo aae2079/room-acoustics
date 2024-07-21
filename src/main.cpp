@@ -8,8 +8,10 @@
 #include <fftw3.h>
 #include <portaudio.h>
 #include <armadillo>
+#include "linearCurveFit.hpp"
 #define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
+#define OVERLAP BUFFER_SIZE/2
 using namespace std;
 
 
@@ -158,11 +160,15 @@ REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, std::vector<double>& 
         schroederIntegration(schIntegralInput);
 
         // Calculate the reverb time Curve Fitting
+        //Determine how to get time array
+        LinearCurveFit curveFit;
+        curveFit.fitPoints(schIntegralInput); //needs to be a vector of <x,y> points. x is time, y is the schroeder integral
+        double slope = curveFit.getSlope();
+        double yInt = curveFit.getYInt();
  
     }
 
     
-
     return reverbTime;
 
 }
@@ -171,7 +177,7 @@ REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, std::vector<double>& 
 
     
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) 
 
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
@@ -198,26 +204,38 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const size_t bytes_per_sample = header.bitsPerSample / 8;
-    std::vector<char> buffer(BUFFER_SIZE*bytes_per_sample);
+    const size_t bytesPerSamp = header.bitsPerSample / 8;
+    const size_t overlapBytes = OVERLAP * bytesPerSamp;
+    std::vector<char> buffer(BUFFER_SIZE*bytesPerSamp);
 
-    int msgCount = 1;
+    std::vector<char> overlapBuffer(overlapBytes,0);
+    std::vector<double> timeArray(BUFFER_SIZE);
+    arma::vec timeArray_arma(BUFFER_SIZE);
 
-    while (file.read(buffer.data(), BUFFER_SIZE*bytes_per_sample)) {
-        std::cout << "Read " << file.gcount() << " bytes." << std::endl;
+    int msgCount = 0;
+    double time = 0;
+    while (file.read(buffer.data(), BUFFER_SIZE*bytesPerSamp)) 
+        //std::cout << "Read " << file.gcount() << " bytes." << std::endl;
         
+        // Combine overlap with current buffer
+        //std::memcpy(buffer.data(), overlapBuffer.data(), overlapBytes);
         
-        if (bytes_per_sample == 2) { // 16-bit sample
+        if (bytesPerSamp == 2)  // 16-bit sample
             std::vector<int16_t> audioChunk(BUFFER_SIZE);
-            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytes_per_sample);
-            int a = 0;
+            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
+            timeArray_arma = arma::linspace(time,(time+BUFFER_SIZE)/header.sampleRate,BUFFER_SIZE);
+            timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma);
+C
+         else if (bytesPerSamp == 4) { // 32-bit sample
+            std::vector<int32_t> audioChunk(BUFFER_SIZE);
+            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
+            timeArray_arma = arma::linspace(time,(time+BUFFER_SIZE)/header.sampleRate,BUFFER_SIZE);
+            timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma); 
 
-        } else if (bytes_per_sample == 4) { // 32-bit sample
-            int32_t sample = *reinterpret_cast<int32_t*>(buffer.data());
-            std::cout << "First sample: " << sample << std::endl;
         }
+        time += static_cast<double>(BUFFER_SIZE)/header.sampleRate;
         msgCount++;
-    }
+    
 
     if (file.gcount() > 0) {
         std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
@@ -234,4 +252,3 @@ int main(int argc, char* argv[]) {
 
 
     return 0;
-}
