@@ -3,12 +3,11 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "acousDefs.hpp"
 #include "wav.hpp"
+#include "rtDefs.hh"
 #include <fftw3.h>
 #include <portaudio.h>
 #include <armadillo>
-#include "linearCurveFit.hpp"
 #define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
 #define OVERLAP BUFFER_SIZE/2
@@ -64,126 +63,15 @@ class wav {
 };
 #endif
 
-arma::cx_vec hilbertTransform(std::vector<double>& data, int N) {
-    /*
-    computes the Hilbert Transform
-    data: input d data (real)
-    N: size of the data
-    */
 
-    N = data.size();
-    arma::vec dataArma(data);
-    arma::cx_vec dataFFT = arma::fft(dataArma);
-
-    if (N % 2 == 0) {
-        for (int ii = 1; ii < N/2; ii++) {
-            dataFFT(ii) *= 2;
-        }
-
-    } else {
-        for (int ii = 1; ii < (N+1)/2; ii++) {
-            dataFFT(ii) *= 2;
-        }
-    }
-
-    arma::cx_vec dataIFFT = arma::ifft(dataFFT);
-
-    //data = arma::conv_to<std::vector<complex<double>>>::from(arma::abs(dataIFFT));
-    
-    return dataIFFT;
-    
-}
-
-#if 1
-void movingAverage(std::vector<double>& data, int k) {
-    /*
-    Computes the moving average of the data, which uses a reflective padding method
-    data: input data (real)
-    k: size of the window
-    */
-
-    //int pad_width = k / 2;
-    std::vector<double> frame;
-
-    for (int ii = 0; ii < data.size(); ii++){
-        double sum = 0;
-        for (int jj = 0; jj < k; jj++) {
-            sum += data[ii + jj];
-        }
-        frame.push_back(sum/k);
-        
-    }
-
-
-}
-void schroederIntegration(std::vector<double>& data) {
-
-    /* 
-    Computes the Schroeder Integration
-    data: input data (real)
-    */
-
-    std::vector<double> cumsum;
-    int sum = 0;
-    for(int i = 0; i < data.size(); i++) {
-        sum += data[i];
-        cumsum.push_back(sum);
-    }
-
-    double max_cumsum = *std::max_element(cumsum.begin(), cumsum.end());
-
-    for (int ii = 0; ii < data.size(); ii++) {
-        data[ii] = 10 * log10(cumsum[ii] / max_cumsum);
-    }
-
-
-
-}
-
-REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, std::vector<double>& buffer, double fs, int window_size) {
-    REVERB_TIME reverbTime; // struct to hold the reverb time values
-    
-    //buffer.insert(audioData.begin(), audioData.end());
-
-    if(buffer.size() >= 19900) {
-        // Hilbert Transform
-        arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
-        std::vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
-        int N = 7000;
-
-        movingAverage(envelope, window_size);
-
-        // Schroeder Integration Proc
-        std::vector<double> schIntegralInput(envelope.begin(), envelope.end() + N);
-        std::reverse(schIntegralInput.begin(), schIntegralInput.end());
-        std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) {return x*x;});
-        schroederIntegration(schIntegralInput);
-
-        // Calculate the reverb time Curve Fitting
-        //Determine how to get time array
-        LinearCurveFit curveFit;
-        curveFit.fitPoints(schIntegralInput); //needs to be a vector of <x,y> points. x is time, y is the schroeder integral
-        double slope = curveFit.getSlope();
-        double yInt = curveFit.getYInt();
- 
-    }
-
-    
-    return reverbTime;
-
-}
-
-#endif
-
-    
-
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[]) {
+    REVERB_TIME reverbTime;
+    ReverbAnalyzer rA;
 
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
         return 1;
     }
-
 
     /*
     Read the WAV file
@@ -204,38 +92,50 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    const size_t bytesPerSamp = header.bitsPerSample / 8;
-    const size_t overlapBytes = OVERLAP * bytesPerSamp;
+    size_t bytesPerSamp = header.bitsPerSample / 8;
+    size_t overlapBytes = OVERLAP * bytesPerSamp;
     std::vector<char> buffer(BUFFER_SIZE*bytesPerSamp);
 
     std::vector<char> overlapBuffer(overlapBytes,0);
-    std::vector<double> timeArray(BUFFER_SIZE);
-    arma::vec timeArray_arma(BUFFER_SIZE);
+    std::vector<double> timeArray;
+    std::vector<double> audioData;
 
     int msgCount = 0;
     double time = 0;
-    while (file.read(buffer.data(), BUFFER_SIZE*bytesPerSamp)) 
+    while (file.read(buffer.data(), BUFFER_SIZE*bytesPerSamp)) {
         //std::cout << "Read " << file.gcount() << " bytes." << std::endl;
         
         // Combine overlap with current buffer
         //std::memcpy(buffer.data(), overlapBuffer.data(), overlapBytes);
         
-        if (bytesPerSamp == 2)  // 16-bit sample
+        if (bytesPerSamp == 2){
+             // 16-bit sample
             std::vector<int16_t> audioChunk(BUFFER_SIZE);
             std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
-            timeArray_arma = arma::linspace(time,(time+BUFFER_SIZE)/header.sampleRate,BUFFER_SIZE);
-            timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma);
-C
-         else if (bytesPerSamp == 4) { // 32-bit sample
+            //timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma);
+            if(msgCount <= 39) {
+                audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+            }  
+
+        } 
+        else if (bytesPerSamp == 4) { // 32-bit sample
             std::vector<int32_t> audioChunk(BUFFER_SIZE);
             std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
-            timeArray_arma = arma::linspace(time,(time+BUFFER_SIZE)/header.sampleRate,BUFFER_SIZE);
-            timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma); 
+            while (msgCount != 38) {
+                audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+            }
 
         }
         time += static_cast<double>(BUFFER_SIZE)/header.sampleRate;
         msgCount++;
     
+    }
+
+    reverbTime = rA.reverbTimeCalc(audioData, header.sampleRate, 100);
+    std::cout << "RT60: " << reverbTime.RT60 << std::endl;
+    std::cout << "RT30: " << reverbTime.RT30 << std::endl;
+    std::cout << "RT20: " << reverbTime.RT20 << std::endl;
+    std::cout << "RT10: " << reverbTime.RT10 << std::endl;
 
     if (file.gcount() > 0) {
         std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
@@ -247,8 +147,5 @@ C
     std::cout<< "Number of messages: " << msgCount << std::endl;
     file.close();
 
-
-
-
-
     return 0;
+}

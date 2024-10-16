@@ -17,7 +17,7 @@ INSTALL_PATH = $(PROJECT_PATH)/bin
 SRCS = main.cpp
 
 #Create Object Dir
-$(shell mkdir -p $(PROJECT_PATH)/obj)
+$(shell sudo mkdir -p $(PROJECT_PATH)/obj)
 
 #Object Dir
 ODIR = $(PROJECT_PATH)/obj
@@ -42,10 +42,25 @@ INC = -I$(PROJECT_PATH)/include \
 endif
 
 # Library path
-LIB = -L/opt/homebrew/Cellar/fftw/3.3.10_1/lib -L/usr/lib/aarch64-linux-gnu -L/usr/lib/portaudio
+LIB = -L/opt/homebrew/Cellar/fftw/3.3.10_1/lib \
+		-L/usr/lib/aarch64-linux-gnu \
+		-L/usr/lib/portaudio \
+		-L$(PROJECT_PATH)/lib
 
 # Build rule
 all: $(INSTALL_PATH)/$(EXEC)
+
+# Target rule to link the executable
+$(INSTALL_PATH)/$(EXEC): $(OBJS)
+	$(CXX) $(CXXFLAGS)-o $@ $^ $(LIB) -lfftw3 -lm -larmadillo -lportaudio -lreverbtime
+
+# Rule to compile source files
+$(ODIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INC) -c -o $@ $<
+	
+# Clean rule
+clean: $(INSTALL_PATH)/$(EXEC)
+	rm -f $(INSTALL_PATH)/$(EXEC) $(OBJS)
 
 # Target rule to link the executable
 $(INSTALL_PATH)/$(EXEC): $(OBJS)
@@ -54,9 +69,4 @@ $(INSTALL_PATH)/$(EXEC): $(OBJS)
 # Rule to compile source files
 $(ODIR)/%.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INC) -c -o $@ $<
-	
-# Clean rule
-clean:
-	rm -f $(INSTALL_PATH)/$(EXEC) $(OBJS)
-
 
