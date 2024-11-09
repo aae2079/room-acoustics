@@ -1,6 +1,7 @@
 #include "rtDefs.hh"
 #include <cmath>
 #include <algorithm>
+#include <fstream>
 
 LinearCurveFit::LinearCurveFit() : slope(0), yInt(0) {}
 
@@ -9,22 +10,24 @@ bool LinearCurveFit::fitPoints(const std::vector<Point>& points) {
     if (nPoints < 2) {
         return false;
     }
-    double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
     for (const auto& p : points) {
         sumX += p.x;
         sumY += p.y;
         sumXY += p.x * p.y;
-        sumX2 += p.x * p.x;
+        sumXX += p.x * p.x;
     }
     double xMean = sumX / nPoints;
     double yMean = sumY / nPoints;
-    double denominator = sumX2 - (sumX * sumX) / nPoints;
+    double xyMean = sumXY / nPoints;
+    double xxMean = sumXX / nPoints;
 
+    double denominator = xxMean - xMean * xMean;
     if (denominator == 0) {
-        return false;
+        return false; 
     }
 
-    slope = (sumXY - (sumX * sumY) / nPoints) / denominator;
+    slope = (xyMean - xMean * yMean) / denominator;
     yInt = yMean - slope * xMean;
     return true;
 }
@@ -77,6 +80,7 @@ std::vector<double> ReverbAnalyzer::linspace(double start, double end, int num) 
 }
 
 void ReverbAnalyzer::schroederIntegration(std::vector<double>& data) {
+           
     std::vector<double> cumsum;
     double sum = 0;
 
@@ -86,9 +90,10 @@ void ReverbAnalyzer::schroederIntegration(std::vector<double>& data) {
     }
 
     double max_cumsum = *std::max_element(cumsum.begin(), cumsum.end());
-
-    for (double& val : data) {
-        val = 10 * log10(cumsum[val] / max_cumsum);
+    int revIx = data.size()-1;
+    for (size_t ii = 0; ii < data.size(); ii++) {
+        data[ii] = 10 * log10(cumsum[revIx] / max_cumsum);
+        revIx--;
     }
 }
 

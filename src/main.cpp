@@ -5,8 +5,8 @@
 #include <vector>
 #include "wav.hpp"
 #include "rtDefs.hh"
-#include <fftw3.h>
-#include <portaudio.h>
+//#include <fftw3.h>
+//#include <portaudio.h>
 #include <armadillo>
 #define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
@@ -19,6 +19,7 @@ class wav {
     private:
         wavHeader header;
         vector<double> data;
+
     public:
         wav(string filename) {
             ifstream file(filename, ios::binary);
@@ -62,7 +63,6 @@ class wav {
         }
 };
 #endif
-
 
 int main(int argc, char* argv[]) {
     REVERB_TIME reverbTime;

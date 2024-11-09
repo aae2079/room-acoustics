@@ -5,7 +5,7 @@ PROJECT_PATH = $(PROJECT_DIR)
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -Wall -O2 -fPIC
+CXXFLAGS = -std=c++11 -g -O0 -Wall -fPIC
 
 
 #Library name and srcs
@@ -30,15 +30,14 @@ $(LIB_OBJ): $(LIB_SRCS) $(HEADER)
 
 #clean
 clean:
-	sudo rm -f $(LIB_OBJ) $(LIB_NAME)
+	rm -f $(LIB_OBJ) $(LIB_NAME)
 
 #install
 install:
-	sudo mkdir -p $(LIB_INSTALL_PATH)
-	sudo cp $(LIB_NAME) $(LIB_INSTALL_PATH)
-	sudo cp $(HEADERS) $(LIB_INCLUDE_PATH)
+	cp $(LIB_NAME) $(LIB_INSTALL_PATH)
+	cp $(HEADERS) $(LIB_INCLUDE_PATH)
 
 #uninstall
 uninstall:
-	sudo rm -f $(LIB_INSTALL_PATH)/$(LIB_NAME)
-	sudo rm -f $(LIB_INCLUDE_PATH)/$(HEADERS)
+	rm -f $(LIB_INSTALL_PATH)/$(LIB_NAME)
+	rm -f $(LIB_INCLUDE_PATH)/$(HEADERS)
