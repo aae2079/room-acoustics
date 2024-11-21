@@ -8,5 +8,7 @@ export PROJECT_DIR=$SCRIPT_DIR/..
 
 export LD_LIBRARY_PATH=$PROJECT_DIR/lib:$LD_LIBRARY_PATH
 
+echo "PROJECT_DIR set to $PROJECT_DIR"
+
 
 

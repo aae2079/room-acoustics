@@ -2,6 +2,7 @@
 #include <cmath>
 #include <algorithm>
 #include <fstream>
+#define CHANGE_RATE_TH 0.0008
 
 LinearCurveFit::LinearCurveFit() : slope(0), yInt(0) {}
 
@@ -101,6 +102,8 @@ REVERB_TIME ReverbAnalyzer::reverbTimeCalc(std::vector<double>& audioData, doubl
     REVERB_TIME reverbTime;
     LinearCurveFit curveFit;
     std::vector<Point> curveFitData;
+    double sum,avg;
+    int integralSize,ii;
 
     // Hilbert Transform
     arma::cx_vec hilbertTransformedData = hilbertTransform(audioData);
@@ -109,8 +112,23 @@ REVERB_TIME ReverbAnalyzer::reverbTimeCalc(std::vector<double>& audioData, doubl
     // Moving Average
     movingAverage(envelope, window_size);
 
+    std::vector<double> debug;
+    debug.resize(envelope.size());
+    for (int gdb = 0; gdb < envelope.size(); gdb++) {
+        debug[gdb] = 20 * log10(envelope[gdb]);
+    }
+    for (ii = 0; ii < envelope.size(); ii += 1024){
+        sum = std::accumulate(envelope.begin() + ii, envelope.begin() + ii + 1024, 0.0);
+        avg = sum / 1024;
+        if (avg < CHANGE_RATE_TH){
+            break;
+        }
+    }
+    integralSize = ii;
     // Schroeder Integration
-    std::vector<double> schIntegralInput(envelope.begin(), envelope.end());
+    std::vector<double> schIntegralInput(envelope.begin(), integralSize + envelope.begin());
+    //schIntegralInput.erase(schIntegralInput.begin() + integralSize, schIntegralInput.end());
+    
     std::reverse(schIntegralInput.begin(), schIntegralInput.end());
     std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) { return x * x; });
     schroederIntegration(schIntegralInput);

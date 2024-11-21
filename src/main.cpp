@@ -69,8 +69,11 @@ int main(int argc, char* argv[]) {
     ReverbAnalyzer rA;
 
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <filename>" << "<Optional:Path to save data>" << std::endl;
         return 1;
+    }
+    if (argc == 3) {
+        std::string path = argv[2];
     }
 
     /*
@@ -108,8 +111,7 @@ int main(int argc, char* argv[]) {
         // Combine overlap with current buffer
         //std::memcpy(buffer.data(), overlapBuffer.data(), overlapBytes);
         
-        if (bytesPerSamp == 2){
-             // 16-bit sample
+        if (bytesPerSamp == 2){// 16-bit sample
             std::vector<int16_t> audioChunk(BUFFER_SIZE);
             std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
             //timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma);
@@ -130,8 +132,13 @@ int main(int argc, char* argv[]) {
         msgCount++;
     
     }
+    //Normalize audio data
+    double max = *std::max_element(audioData.begin(), audioData.end());
+    for (size_t ii = 0; ii < audioData.size(); ii++) {
+        audioData[ii] /= max;
+    }
 
-    reverbTime = rA.reverbTimeCalc(audioData, header.sampleRate, 100);
+    reverbTime = rA.reverbTimeCalc(audioData, header.sampleRate, 200);
     std::cout << "RT60: " << reverbTime.RT60 << std::endl;
     std::cout << "RT30: " << reverbTime.RT30 << std::endl;
     std::cout << "RT20: " << reverbTime.RT20 << std::endl;
