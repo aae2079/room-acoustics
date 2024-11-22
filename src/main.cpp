@@ -3,182 +3,125 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include "acousDefs.hpp"
 #include "wav.hpp"
-#include <fftw3.h>
+#include "rtDefs.hh"
+//#include <fftw3.h>
 #include <portaudio.h>
 #include <armadillo>
+#include "roomAcoustics.hh"
 #define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
+#define OVERLAP BUFFER_SIZE/2
+#define SAMPLE_RATE 44100
 using namespace std;
 
+#define SAMPLE_RATE 44100
+#define FRAMES_PER_BUFFER 1024
+#define NUM_CHANNELS 1
+#define SAMPLE_SIZE sizeof(float)  // We are using 32-bit float for audio data
+#define PA_SAMPLE_TYPE paFloat32  // PortAudio sample type for float data
 
-#if 0
-class wav {
-    private:
-        wavHeader header;
-        vector<double> data;
-    public:
-        wav(string filename) {
-            ifstream file(filename, ios::binary);
-            if(!file.is_open()) {
-                cout << "Error: Could not open file " << filename << endl;
-                return;
-            }
-            file.read((char*)&header, sizeof(wavHeader));
-            
-            //Read the data into a buffer
-            std::vector<char> buffer(BUFFER_SIZE);
-            while(file.read(buffer.data(), buffer.size())) {
-                for(int i = 0; i < BUFFER_SIZE; i++) {
-                    data.push_back((double)buffer[i]);
-                }
-                std::streamsize bytesRead = file.gcount();
-                if(bytesRead == 0){
-                    break;
-                }
-            }
-            file.close();
-            
-        }
-        void print() {
-            cout << "riff: " << header.riff[0] << header.riff[1] << header.riff[2] << header.riff[3] << endl;
-            cout << "chunkSize: " << header.chunkSize << endl;
-            cout << "wave: " << header.wave[0] << header.wave[1] << header.wave[2] << header.wave[3] << endl;
-            cout << "fmt: " << header.fmt[0] << header.fmt[1] << header.fmt[2] << header.fmt[3] << endl;
-            cout << "subchunk1Size: " << header.subchunk1Size << endl;
-            cout << "audioFormat: " << header.audioFormat << endl;
-            cout << "numChannels: " << header.numChannels << endl;
-            cout << "sampleRate: " << header.sampleRate << endl;
-            cout << "byteRate: " << header.byteRate << endl;
-            cout << "blockAlign: " << header.blockAlign << endl;
-            cout << "bitsPerSample: " << header.bitsPerSample << endl;
-            cout << "data: " << header.data[0] << header.data[1] << header.data[2] << header.data[3] << endl;
-            cout << "subchunk2Size: " << header.subchunk2Size << endl;
-        }
-        const vector<double>& getData() {
-            return data;
-        }
-};
-#endif
+bool is_recording = false;
+ROOM_ACOUSTICS_CTRL *ctrlMem;
 
-arma::cx_vec hilbertTransform(std::vector<double>& data, int N) {
-    /*
-    computes the Hilbert Transform
-    data: input d data (real)
-    N: size of the data
-    */
-
-    N = data.size();
-    arma::vec dataArma(data);
-    arma::cx_vec dataFFT = arma::fft(dataArma);
-
-    if (N % 2 == 0) {
-        for (int ii = 1; ii < N/2; ii++) {
-            dataFFT(ii) *= 2;
-        }
-
-    } else {
-        for (int ii = 1; ii < (N+1)/2; ii++) {
-            dataFFT(ii) *= 2;
-        }
+static int audioRecordingCB(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
+                            const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void *userData ){
+    if(is_recording){
+        const float* input = static_cast<const float*>(inputBuffer);
+        ctrlMem->buffer.insert(ctrlMem->buffer.end(), input, input + framesPerBuffer);
     }
 
-    arma::cx_vec dataIFFT = arma::ifft(dataFFT);
-
-    //data = arma::conv_to<std::vector<complex<double>>>::from(arma::abs(dataIFFT));
-    
-    return dataIFFT;
-    
-}
-
-#if 1
-void movingAverage(std::vector<double>& data, int k) {
-    /*
-    Computes the moving average of the data, which uses a reflective padding method
-    data: input data (real)
-    k: size of the window
-    */
-
-    //int pad_width = k / 2;
-    std::vector<double> frame;
-
-    for (int ii = 0; ii < data.size(); ii++){
-        double sum = 0;
-        for (int jj = 0; jj < k; jj++) {
-            sum += data[ii + jj];
-        }
-        frame.push_back(sum/k);
-        
-    }
-
-
-}
-void schroederIntegration(std::vector<double>& data) {
-
-    /* 
-    Computes the Schroeder Integration
-    data: input data (real)
-    */
-
-    std::vector<double> cumsum;
-    int sum = 0;
-    for(int i = 0; i < data.size(); i++) {
-        sum += data[i];
-        cumsum.push_back(sum);
-    }
-
-    double max_cumsum = *std::max_element(cumsum.begin(), cumsum.end());
-
-    for (int ii = 0; ii < data.size(); ii++) {
-        data[ii] = 10 * log10(cumsum[ii] / max_cumsum);
-    }
-
-
+    return paContinue;
 
 }
 
-REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, std::vector<double>& buffer, double fs, int window_size) {
-    REVERB_TIME reverbTime; // struct to hold the reverb time values
-    
-    //buffer.insert(audioData.begin(), audioData.end());
-
-    if(buffer.size() >= 19900) {
-        // Hilbert Transform
-        arma::cx_vec hilbertTransformedData = hilbertTransform(audioData, audioData.size());
-        std::vector<double> envelope = arma::conv_to<std::vector<double>>::from(arma::abs(hilbertTransformedData));
-        int N = 7000;
-
-        movingAverage(envelope, window_size);
-
-        // Schroeder Integration Proc
-        std::vector<double> schIntegralInput(envelope.begin(), envelope.end() + N);
-        std::reverse(schIntegralInput.begin(), schIntegralInput.end());
-        std::transform(schIntegralInput.begin(), schIntegralInput.end(), schIntegralInput.begin(), [](double x) {return x*x;});
-        schroederIntegration(schIntegralInput);
-
-        // Calculate the reverb time Curve Fitting
- 
+void cleanup(){
+    ctrlMem->err = Pa_StopStream(ctrlMem->stream);
+    if (ctrlMem->err != paNoError) {
+        std::cerr << "Error stopping stream: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
     }
-
-    
-
-    return reverbTime;
-
+    ctrlMem->err = Pa_CloseStream(ctrlMem->stream);
+    if (ctrlMem->err != paNoError) {
+        std::cerr << "Error closing stream: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
+    }
+    Pa_Terminate(); 
+    std::cout << "PortAudio terminated." << std::endl;
+    delete ctrlMem;
 }
-
-#endif
-
-    
 
 int main(int argc, char* argv[]) {
+    ctrlMem = new ROOM_ACOUSTICS_CTRL;
 
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+    REVERB_TIME reverbTime;
+    ReverbAnalyzer rA;
+
+    
+
+    ctrlMem->err = Pa_Initialize();
+    if (ctrlMem->err != paNoError){
+        std::cerr << "PortAudio initialization error: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
+        return 1;
+    }
+     ctrlMem->err = Pa_OpenDefaultStream(&ctrlMem->stream,
+                               NUM_CHANNELS,      // Number of input channels
+                               0,                  // Number of output channels
+                               PA_SAMPLE_TYPE,     // Sample format (float)
+                               SAMPLE_RATE,        // Sample rate
+                               FRAMES_PER_BUFFER,  // Frames per buffer
+                               audioRecordingCB,      // Callback function
+                               nullptr);           // User data (none in this case)
+
+    if (ctrlMem->err != paNoError) {
+        std::cerr << "Error opening stream: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
         return 1;
     }
 
+    ctrlMem->err = Pa_StartStream(ctrlMem->stream);
+    if (ctrlMem->err != paNoError) {
+        std::cerr << "Error starting stream: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
+        return 1;
+    }
 
+    char buttonInput;
+    while(1){
+        std::cout << "Press 'r' to start recording, 'q' to quit: ";
+        std::cin >> buttonInput;
+        if(buttonInput == 'r'){
+            if(is_recording){
+                is_recording = false;
+            }else{
+                is_recording = true;
+            }
+        }else if(buttonInput == 'q'){
+            //run reverb analyzer
+            double sum = 0;
+            for (size_t ii = 0; ii < ctrlMem->buffer.size(); ii++) {
+                sum += ctrlMem->buffer[ii];
+            }
+            if(sum == 0){
+                std::cerr << "No audio data recorded." << std::endl;
+                break;
+            }
+            reverbTime = rA.reverbTimeCalc(ctrlMem->buffer, (double)SAMPLE_RATE, 200);
+            std::cout << "RT60: " << reverbTime.RT60 << std::endl;
+            std::cout << "RT30: " << reverbTime.RT30 << std::endl;
+            std::cout << "RT20: " << reverbTime.RT20 << std::endl;
+            std::cout << "RT10: " << reverbTime.RT10 << std::endl;
+            
+            break;
+        }else{
+            std::cout << "Try again...";
+        }
+    }
+
+    cleanup();
+    
+    #if _WAV_READER_
+        if (argc < 2) {
+            std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+            return 1;
+        }
+    
     /*
     Read the WAV file
     */
@@ -198,26 +141,55 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    const size_t bytes_per_sample = header.bitsPerSample / 8;
-    std::vector<char> buffer(BUFFER_SIZE*bytes_per_sample);
+    size_t bytesPerSamp = header.bitsPerSample / 8;
+    size_t overlapBytes = OVERLAP * bytesPerSamp;
+    std::vector<char> buffer(BUFFER_SIZE*bytesPerSamp);
 
-    int msgCount = 1;
+    std::vector<char> overlapBuffer(overlapBytes,0);
+    std::vector<double> timeArray;
+    std::vector<double> audioData;
 
-    while (file.read(buffer.data(), BUFFER_SIZE*bytes_per_sample)) {
-        std::cout << "Read " << file.gcount() << " bytes." << std::endl;
+    int msgCount = 0;
+    double time = 0;
+    while (file.read(buffer.data(), BUFFER_SIZE*bytesPerSamp)) {
+        //std::cout << "Read " << file.gcount() << " bytes." << std::endl;
         
+        // Combine overlap with current buffer
+        //std::memcpy(buffer.data(), overlapBuffer.data(), overlapBytes);
         
-        if (bytes_per_sample == 2) { // 16-bit sample
+        if (bytesPerSamp == 2){// 16-bit sample
             std::vector<int16_t> audioChunk(BUFFER_SIZE);
-            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytes_per_sample);
-            int a = 0;
+            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
+            //timeArray = arma::conv_to<std::vector<double>>::from(timeArray_arma);
+            if(msgCount <= 39) {
+                audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+            }  
 
-        } else if (bytes_per_sample == 4) { // 32-bit sample
-            int32_t sample = *reinterpret_cast<int32_t*>(buffer.data());
-            std::cout << "First sample: " << sample << std::endl;
+        } 
+        else if (bytesPerSamp == 4) { // 32-bit sample
+            std::vector<int32_t> audioChunk(BUFFER_SIZE);
+            std::memcpy(audioChunk.data(), buffer.data(), BUFFER_SIZE * bytesPerSamp);
+            while (msgCount != 38) {
+                audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+            }
+
         }
+        time += static_cast<double>(BUFFER_SIZE)/header.sampleRate;
         msgCount++;
+    
     }
+    //Normalize audio data
+    double max = *std::max_element(audioData.begin(), audioData.end());
+    for (size_t ii = 0; ii < audioData.size(); ii++) {
+        audioData[ii] /= max;
+    }
+
+
+    reverbTime = rA.reverbTimeCalc(audioData, header.sampleRate, 200);
+    std::cout << "RT60: " << reverbTime.RT60 << std::endl;
+    std::cout << "RT30: " << reverbTime.RT30 << std::endl;
+    std::cout << "RT20: " << reverbTime.RT20 << std::endl;
+    std::cout << "RT10: " << reverbTime.RT10 << std::endl;
 
     if (file.gcount() > 0) {
         std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
@@ -228,10 +200,6 @@ int main(int argc, char* argv[]) {
 
     std::cout<< "Number of messages: " << msgCount << std::endl;
     file.close();
-
-
-
-
-
+    #endif // _WAV_READER_
     return 0;
 }
