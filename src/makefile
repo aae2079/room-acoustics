@@ -44,7 +44,7 @@ all: $(INSTALL_PATH)/$(EXEC)
 
 # Target rule to link the executable
 $(INSTALL_PATH)/$(EXEC): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIB) -lm -larmadillo -lreverbtime
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIB) -lm -larmadillo -lreverbtime -lportaudio 
 
 # Rule to compile source files
 $(ODIR)/%.o: $(PROJECT_PATH)/src/%.cpp

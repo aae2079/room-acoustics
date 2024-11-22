@@ -21,3 +21,4 @@ make install
 #Build project
 cd $PROJECT_DIR/src
 make clean
+make
