@@ -5,7 +5,7 @@ PROJECT_PATH = $(PROJECT_DIR)
 CXX = g++
 
 # Compiler flags
-CXXFLAGS = -std=c++11 -g -O0 -Wall
+CXXFLAGS = -std=c++11 -g -O0 -Wall -D_WAV_READER_
 
 # Architecture
 ARCH = $(shell arch)

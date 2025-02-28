@@ -12,26 +12,48 @@
 #define ARMA_USE_FFTW3
 #define BUFFER_SIZE 1024
 #define OVERLAP BUFFER_SIZE/2
-#define SAMPLE_RATE 44100
-using namespace std;
+//using namespace std;
 
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 48000
 #define FRAMES_PER_BUFFER 1024
 #define NUM_CHANNELS 1
 #define SAMPLE_SIZE sizeof(float)  // We are using 32-bit float for audio data
 #define PA_SAMPLE_TYPE paFloat32  // PortAudio sample type for float data
 
-bool is_recording = false;
+bool is_recording = true;
 ROOM_ACOUSTICS_CTRL *ctrlMem;
+
+static inline float max(float a, float b) {
+    return (a > b) ? a : b;
+}
+static inline float abs(float a) {
+    return (a > 0) ? a : -a;
+}
 
 static int audioRecordingCB(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
                             const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void *userData ){
-    if(is_recording){
-        const float* input = static_cast<const float*>(inputBuffer);
-        ctrlMem->buffer.insert(ctrlMem->buffer.end(), input, input + framesPerBuffer);
+    const float* input = static_cast<const float*>(inputBuffer);
+    // if(is_recording){
+    //     ctrlMem->buffer.insert(ctrlMem->buffer.end(), input, input + framesPerBuffer);
+    // }
+
+    int dispSize = 100;
+    float volume = 0;
+    for(int i = 0; i < framesPerBuffer; i++){
+        volume = max(volume, std::abs(input[i]));
     }
 
-    return paContinue;
+    for(int i = 0; i < dispSize; i++){
+        float barProportion = i / (float)dispSize;
+        if(barProportion <= volume){
+            std::cout << "█";
+        }else{
+            std::cout << " ";
+        }
+    }
+    flush(std::cout);
+
+    return 0;
 
 }
 
@@ -55,22 +77,35 @@ int main(int argc, char* argv[]) {
     REVERB_TIME reverbTime;
     ReverbAnalyzer rA;
 
-    
+    #if 0
 
     ctrlMem->err = Pa_Initialize();
+    int numDevices = Pa_GetDeviceCount();
+    std::cout << "Number of devices: " << numDevices << std::endl;
+    std::cout << "\n";
+
+    for (int i = 0; i < numDevices; ++i) {
+        const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
+        std::cout<< "Device " << i << ":" << std::endl;
+        std::cout << "  Name "<< ": " << info->name << std::endl;
+        std::cout << "  Max input channels: " << info->maxInputChannels << std::endl;
+        std::cout << "  Max output channels: " << info->maxOutputChannels << std::endl;
+        std::cout << "  Default sample rate: " << info->defaultSampleRate << std::endl;
+    }
+    std::cout << "\n";
     if (ctrlMem->err != paNoError){
         std::cerr << "PortAudio initialization error: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
         return 1;
     }
      ctrlMem->err = Pa_OpenDefaultStream(&ctrlMem->stream,
                                NUM_CHANNELS,      // Number of input channels
-                               0,                  // Number of output channels
+                               2,                  // Number of output channels
                                PA_SAMPLE_TYPE,     // Sample format (float)
                                SAMPLE_RATE,        // Sample rate
                                FRAMES_PER_BUFFER,  // Frames per buffer
                                audioRecordingCB,      // Callback function
                                nullptr);           // User data (none in this case)
-
+    
     if (ctrlMem->err != paNoError) {
         std::cerr << "Error opening stream: " << Pa_GetErrorText(ctrlMem->err) << std::endl;
         return 1;
@@ -82,39 +117,45 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    char buttonInput;
-    while(1){
-        std::cout << "Press 'r' to start recording, 'q' to quit: ";
-        std::cin >> buttonInput;
-        if(buttonInput == 'r'){
-            if(is_recording){
-                is_recording = false;
-            }else{
-                is_recording = true;
-            }
-        }else if(buttonInput == 'q'){
-            //run reverb analyzer
-            double sum = 0;
-            for (size_t ii = 0; ii < ctrlMem->buffer.size(); ii++) {
-                sum += ctrlMem->buffer[ii];
-            }
-            if(sum == 0){
-                std::cerr << "No audio data recorded." << std::endl;
-                break;
-            }
-            reverbTime = rA.reverbTimeCalc(ctrlMem->buffer, (double)SAMPLE_RATE, 200);
-            std::cout << "RT60: " << reverbTime.RT60 << std::endl;
-            std::cout << "RT30: " << reverbTime.RT30 << std::endl;
-            std::cout << "RT20: " << reverbTime.RT20 << std::endl;
-            std::cout << "RT10: " << reverbTime.RT10 << std::endl;
+    Pa_Sleep(10*1000); // Sleep for 10 seconds
+
+
+    // char buttonInput;
+    // while(1){
+    //     std::cout << "Press 'r' to start recording, 's' to stop: ";
+    //     std::cin >> buttonInput;
+    //     if(buttonInput == 'r'){
+    //         is_recording = true;
+    //         std::cout << "Recording..." << std::endl;
+    //     }else if(buttonInput == 's'){
+    //         is_recording = false;
+    //         std::cout << "Recording stopped." << std::endl;
+    //         //run reverb analyzer
+    //         double sum = 0;
+    //         for (size_t ii = 0; ii < ctrlMem->buffer.size(); ii++) {
+    //             sum += ctrlMem->buffer[ii];
+    //         }
+    //         if(sum == 0){
+    //             std::cerr << "No audio data recorded." << std::endl;
+                
+    //         }else{
+    //             reverbTime = rA.reverbTimeCalc(ctrlMem->buffer, (double)SAMPLE_RATE, 200);
+    //             std::cout << "RT60: " << reverbTime.RT60 << std::endl;
+    //             std::cout << "RT30: " << reverbTime.RT30 << std::endl;
+    //             std::cout << "RT20: " << reverbTime.RT20 << std::endl;
+    //             std::cout << "RT10: " << reverbTime.RT10 << std::endl;
             
-            break;
-        }else{
-            std::cout << "Try again...";
-        }
-    }
+    //         }
+           
+    //         break;
+    //     }else{
+    //         std::cout << "Try again...";
+    //     }
+    // }
 
     cleanup();
+
+    #endif
     
     #if _WAV_READER_
         if (argc < 2) {
