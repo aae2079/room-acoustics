@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./setEnv.sh
+source ./scripts/setEnv.sh
 mkdir $PROJECT_DIR/bin 
 mkdir $PROJECT_DIR/lib
 
