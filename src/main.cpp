@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     REVERB_TIME reverbTime;
     ReverbAnalyzer rA;
 
-    
+    #ifndef _WAV_READER_
 
     ctrlMem->err = Pa_Initialize();
     if (ctrlMem->err != paNoError){
@@ -115,6 +115,8 @@ int main(int argc, char* argv[]) {
     }
 
     cleanup();
+
+    #endif
     
     #if _WAV_READER_
         if (argc < 2) {
