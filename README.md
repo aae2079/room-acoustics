@@ -6,12 +6,16 @@ RAM is a project aimed to gain a comprehensive analysis of any room given it's i
 ## Features
 - Reverb Time Analyzer
 
-## Requirements
-- Linux
+## Requirements/Dependencies
+- Linux/Mac
 - g++ 
 - Make
+- Portaudio
 
 ## Installation
+If running on Mac, you will need to install a package manager like homebrew
+Run brew install coreutils
+
 1. Clone the repository
    ```
    git clone git@github.com:aae2079/room-acoustics.git
