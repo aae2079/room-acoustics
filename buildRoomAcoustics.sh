@@ -1,5 +1,8 @@
 #!/bin/bash
-source ./scripts/setEnv.sh
+if [ -z "$PROJECT_DIR" ]; then
+    echo "PROJECT_DIR is not set. Please source setEnv.sh first."
+    exit 1
+fi
 mkdir $PROJECT_DIR/bin 
 mkdir $PROJECT_DIR/lib
 
@@ -17,6 +20,7 @@ make install
 cd $PROJECT_DIR/src/libs/reverb-time
 make shared
 make install
+cp $PROJECT_DIR/lib/libreverbtime* $PROJECT_DIR/bin
 
 #Build project
 cd $PROJECT_DIR/src
