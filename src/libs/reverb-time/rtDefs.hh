@@ -22,6 +22,7 @@ struct REVERB_TIME {
 class LinearCurveFit {
 public:
     LinearCurveFit();
+    ~LinearCurveFit() = default;
     bool fitPoints(const std::vector<Point>& points);
     double getSlope() const;
     double getYInt() const;
@@ -38,6 +39,8 @@ class ReverbAnalyzer {
         void movingAverage(std::vector<double>& data, int k);
         std::vector<double> linspace(double start, double end, int num);
         void schroederIntegration(std::vector<double>& data);
+
+        LinearCurveFit curveFit;
 
     public:
         ReverbAnalyzer() = default;

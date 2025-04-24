@@ -100,7 +100,6 @@ void ReverbAnalyzer::schroederIntegration(std::vector<double>& data) {
 
 REVERB_TIME ReverbAnalyzer::reverbTimeCalc(std::vector<double>& audioData, double fs, int window_size) {
     REVERB_TIME reverbTime;
-    LinearCurveFit curveFit;
     std::vector<Point> curveFitData;
     double sum,avg;
     int integralSize,ii;
