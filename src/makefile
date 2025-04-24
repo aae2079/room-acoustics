@@ -43,6 +43,7 @@ LIB = -L$(PROJECT_PATH)/external/arma/
 ifeq ($(ARCH),arm64)
 	LIB += -L/opt/homebrew/lib \
 		-L$(PROJECT_PATH)/lib \
+		-Wl,-rpath,$(PROJECT_PATH)/lib \
 		-Wl,-rpath,$(PROJECT_PATH)/external/arma/
 else
 	LIB += 	-L/usr/lib/x86_64-linux-gnu \
