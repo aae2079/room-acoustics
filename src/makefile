@@ -29,15 +29,28 @@ OBJS = $(SRCS:$(PROJECT_PATH)/src/%.cpp=$(ODIR)/%.o)
 EXEC = roomAcoustics_$(ARCH)
 
 # Include paths
-INC = -I$(PROJECT_PATH)/include \
-	  -I/opt/homebrew/Cellar/fftw/3.3.10_1/include \
-	  -I/usr/include \
-	  -I/usr/include/portaudio
+INC = -I$(PROJECT_PATH)/external/arma/include/armadillo_bits
+ifeq ($(ARCH),arm64)
+	INC += -I$(PROJECT_PATH)/include \
+	  -I/opt/homebrew/include 
+else
+	INC += -I$(PROJECT_PATH)/include \
+	  -I/usr/include 
+endif
 
 # Library path
-LIB = 	-L/usr/lib/aarch64-linux-gnu \
+LIB = -L$(PROJECT_PATH)/external/arma/
+ifeq ($(ARCH),arm64)
+	LIB += -L/opt/homebrew/lib \
+		-L$(PROJECT_PATH)/lib \
+		-Wl,-rpath,$(PROJECT_PATH)/external/arma/
+else
+	LIB += 	-L/usr/lib/x86_64-linux-gnu \
 		-L/usr/lib64 \
 		-L$(PROJECT_PATH)/lib
+endif
+
+
 
 # Build rule
 all: $(INSTALL_PATH)/$(EXEC)

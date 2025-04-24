@@ -9,7 +9,13 @@ CXXFLAGS = -std=c++11 -g -O0 -Wall -fPIC
 
 
 #Library name and srcs
-LIB_NAME = libreverbtime.so 
+# Architecture
+ARCH = $(shell arch)
+ifeq ($(ARCH),arm64)
+	LIB_NAME = libreverbtime.dylib
+else
+	LIB_NAME = libreverbtime.so
+endif
 LIB_SRCS = rtProc.cc
 LIB_OBJ = rtProc.o
 HEADERS = rtDefs.hh
