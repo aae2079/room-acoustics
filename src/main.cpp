@@ -23,10 +23,15 @@ using namespace std;
 
 bool is_recording = false;
 ROOM_ACOUSTICS_CTRL *ctrlMem;
+bool firstTime = true;
 
 static int audioRecordingCB(const void* inputBuffer, void* outputBuffer, unsigned long framesPerBuffer,
                             const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void *userData ){
     if(is_recording){
+        if (firstTime){
+            std::cout << "Recording started..." << std::endl;
+            firstTime = false;
+        }
         const float* input = static_cast<const float*>(inputBuffer);
         ctrlMem->buffer.insert(ctrlMem->buffer.end(), input, input + framesPerBuffer);
     }
@@ -102,11 +107,11 @@ int main(int argc, char* argv[]) {
                 std::cerr << "No audio data recorded." << std::endl;
                 break;
             }
-            reverbTime = rA.reverbTimeCalc(ctrlMem->buffer, (double)SAMPLE_RATE, 200);
-            std::cout << "RT60: " << reverbTime.RT60 << std::endl;
-            std::cout << "RT30: " << reverbTime.RT30 << std::endl;
-            std::cout << "RT20: " << reverbTime.RT20 << std::endl;
-            std::cout << "RT10: " << reverbTime.RT10 << std::endl;
+            reverbTime = rA->reverbTimeCalc(ctrlMem->buffer, (double)SAMPLE_RATE, 200);
+            std::cout << "RT60: " << reverbTime.RT60 << " sec" << std::endl;
+            std::cout << "RT30: " << reverbTime.RT30 << " sec" << std::endl;
+            std::cout << "RT20: " << reverbTime.RT20 << " sec" << std::endl;
+            std::cout << "RT10: " << reverbTime.RT10 << " sec" << std::endl;
             
             break;
         }else{
@@ -180,6 +185,23 @@ int main(int argc, char* argv[]) {
         msgCount++;
     
     }
+    if (file.gcount() > 0) {
+        std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
+        // Process remaining buffer here
+        if (bytesPerSamp == 2) { // 16-bit sample
+            std::vector<int16_t> audioChunk(BUFFER_SIZE);
+            std::memcpy(audioChunk.data(), buffer.data(), file.gcount());
+            audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+        } else if (bytesPerSamp == 4) { // 32-bit sample
+            std::vector<int32_t> audioChunk(BUFFER_SIZE);
+            std::memcpy(audioChunk.data(), buffer.data(), file.gcount());
+            audioData.insert(audioData.end(), audioChunk.begin(), audioChunk.end());
+        }
+        msgCount++;
+    }
+    std::cout<< "Number of messages: " << msgCount << std::endl;
+    file.close();
+
     //Normalize audio data
     double max = *std::max_element(audioData.begin(), audioData.end());
     for (size_t ii = 0; ii < audioData.size(); ii++) {
@@ -188,20 +210,12 @@ int main(int argc, char* argv[]) {
 
 
     reverbTime = rA->reverbTimeCalc(audioData, header.sampleRate, 200);
-    std::cout << "RT60: " << reverbTime.RT60 << std::endl;
-    std::cout << "RT30: " << reverbTime.RT30 << std::endl;
-    std::cout << "RT20: " << reverbTime.RT20 << std::endl;
-    std::cout << "RT10: " << reverbTime.RT10 << std::endl;
+    std::cout << "RT60: " << reverbTime.RT60 << " sec" << std::endl;
+    std::cout << "RT30: " << reverbTime.RT30 << " sec" << std::endl;
+    std::cout << "RT20: " << reverbTime.RT20 << " sec" << std::endl;
+    std::cout << "RT10: " << reverbTime.RT10 << " sec" << std::endl;
 
-    if (file.gcount() > 0) {
-        std::cout << "Read " << file.gcount() << " bytes (final block)." << std::endl;
-        
-        // Process remaining buffer here
-        msgCount++;
-    }
-
-    std::cout<< "Number of messages: " << msgCount << std::endl;
-    file.close();
+    
     #endif // _WAV_READER_
     return 0;
 }
