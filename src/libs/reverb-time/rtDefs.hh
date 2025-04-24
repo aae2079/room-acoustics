@@ -32,12 +32,17 @@ private:
 };
 
 class ReverbAnalyzer {
-public:
-    arma::cx_vec hilbertTransform(std::vector<double>& data);
-    void movingAverage(std::vector<double>& data, int k);
-    std::vector<double> linspace(double start, double end, int num);
-    void schroederIntegration(std::vector<double>& data);
-    REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, double fs, int window_size);
+
+    private:
+        arma::cx_vec hilbertTransform(std::vector<double>& data);
+        void movingAverage(std::vector<double>& data, int k);
+        std::vector<double> linspace(double start, double end, int num);
+        void schroederIntegration(std::vector<double>& data);
+
+    public:
+        ReverbAnalyzer() = default;
+        ~ReverbAnalyzer() = default;
+        REVERB_TIME reverbTimeCalc(std::vector<double>& audioData, double fs, int window_size);
 };
 
 #endif // REVERBANALYZER_H

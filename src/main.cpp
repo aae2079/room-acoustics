@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     ctrlMem = new ROOM_ACOUSTICS_CTRL;
 
     REVERB_TIME reverbTime;
-    ReverbAnalyzer rA;
+    ReverbAnalyzer *rA = new ReverbAnalyzer();
 
     #ifndef _WAV_READER_
 
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
     }
 
 
-    reverbTime = rA.reverbTimeCalc(audioData, header.sampleRate, 200);
+    reverbTime = rA->reverbTimeCalc(audioData, header.sampleRate, 200);
     std::cout << "RT60: " << reverbTime.RT60 << std::endl;
     std::cout << "RT30: " << reverbTime.RT30 << std::endl;
     std::cout << "RT20: " << reverbTime.RT20 << std::endl;
