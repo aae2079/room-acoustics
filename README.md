@@ -11,6 +11,9 @@ RAM is a project aimed to gain a comprehensive analysis of any room given it's i
 - or Mac
 
 ## Dependencies
+- For algorithmic design visualization
+  - Python 3.13.2 
+  - GNU Octave
 - g++ 
 - Make
 - pkg installer (homebrew (Mac), yum, etc)
