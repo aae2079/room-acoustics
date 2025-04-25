@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Resolve the path to this script, even if sourced from elsewhere
-if [ -z "PROJECT_DIR" ]; then
+if [ -z "$PROJECT_DIR" ]; then
     PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     export PROJECT_DIR
 fi
