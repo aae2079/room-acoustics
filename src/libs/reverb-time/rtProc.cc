@@ -4,38 +4,6 @@
 #include <fstream>
 #define CHANGE_RATE_TH 0.0008
 
-LinearCurveFit::LinearCurveFit() : slope(0), yInt(0) {}
-
-bool LinearCurveFit::fitPoints(const std::vector<Point>& points) {
-    int nPoints = points.size();
-    if (nPoints < 2) {
-        return false;
-    }
-    double sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-    for (const auto& p : points) {
-        sumX += p.x;
-        sumY += p.y;
-        sumXY += p.x * p.y;
-        sumXX += p.x * p.x;
-    }
-    double xMean = sumX / nPoints;
-    double yMean = sumY / nPoints;
-    double xyMean = sumXY / nPoints;
-    double xxMean = sumXX / nPoints;
-
-    double denominator = xxMean - xMean * xMean;
-    if (denominator == 0) {
-        return false; 
-    }
-
-    slope = (xyMean - xMean * yMean) / denominator;
-    yInt = yMean - slope * xMean;
-    return true;
-}
-
-double LinearCurveFit::getSlope() const { return slope; }
-double LinearCurveFit::getYInt() const { return yInt; }
-
 arma::cx_vec ReverbAnalyzer::hilbertTransform(std::vector<double>& data) {
     int N = data.size();
     arma::vec dataArma(data);

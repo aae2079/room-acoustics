@@ -28,11 +28,11 @@ LIB_INCLUDE_PATH = $(PROJECT_PATH)/include
 shared: $(LIB_NAME)
 
 $(LIB_NAME): $(LIB_OBJ)
-	ifeq ($(ARCH),arm64)
-		$(CXX) -shared -o $@ $^ -Wl,-install_name,@rpath/$(LIB_NAME) -Wl,-rpath,$(LIB_INSTALL_PATH)
-	else
-		$(CXX) -shared -o $@ $^
-	endif
+ifeq ($(ARCH),arm64)
+	$(CXX) -shared -o $@ $^ -Wl,-install_name,@rpath/$(LIB_NAME) -Wl,-rpath,$(LIB_INSTALL_PATH)
+else
+	$(CXX) -shared -o $@ $^
+endif
 
 # Compile object files
 $(LIB_OBJ): $(LIB_SRCS) $(HEADER)
